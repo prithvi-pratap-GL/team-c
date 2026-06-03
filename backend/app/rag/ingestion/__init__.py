@@ -1,0 +1,1 @@
+"""Ingestion module - frozen contracts."""
