@@ -1,0 +1,25 @@
+log_level: info
+
+server:
+  http:
+    host: 0.0.0.0
+    port: 6333
+  grpc:
+    host: 0.0.0.0
+    port: 6334
+
+storage:
+  storage_path: ./storage
+  snapshots_path: ./snapshots
+  temp_path: ./temp
+  wal:
+    enabled: true
+    wal_capacity_mb: 200
+
+performance:
+  max_search_batch_size: 100
+  max_optimization_threads: 2
+
+snapshots:
+  snapshot_path: ./snapshots
+  cleanup_period_sec: 600

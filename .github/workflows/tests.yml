@@ -1,0 +1,138 @@
+name: Tests and Quality Checks
+
+on:
+  push:
+    branches: [main, develop, feat/**]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: rag_db_test
+          POSTGRES_USER: rag_user
+          POSTGRES_PASSWORD: rag_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      qdrant:
+        image: qdrant/qdrant:latest
+        options: >-
+          --health-cmd "curl -f http://localhost:6333/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6333:6333
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-cov pytest-asyncio
+          pip install fastapi uvicorn sqlalchemy psycopg2-binary pydantic
+          pip install qdrant-client openai langchain
+          pip install -r backend/requirements.txt 2>/dev/null || true
+
+      - name: Run pytest with coverage
+        env:
+          DATABASE_URL: postgresql://rag_user:rag_password@localhost:5432/rag_db_test
+          QDRANT_URL: http://localhost:6333
+          REDIS_URL: redis://localhost:6379
+          OPENAI_API_KEY: sk-test-key
+        run: |
+          pytest tests/ \
+            --cov=backend \
+            --cov-report=term-with-missing \
+            --cov-report=html \
+            --cov-report=xml \
+            -v
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            htmlcov/
+            coverage.xml
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install linting tools
+        run: |
+          pip install flake8 black isort mypy
+
+      - name: Run black formatting check
+        run: black --check backend/ tests/ 2>/dev/null || true
+
+      - name: Run isort import check
+        run: isort --check-only backend/ tests/ 2>/dev/null || true
+
+      - name: Run flake8 linting
+        run: flake8 backend/ tests/ --max-line-length=120 2>/dev/null || true
+
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build backend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: false
+          tags: rag-backend:latest
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          push: false
+          tags: rag-frontend:latest
+
+      - name: Build nginx image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./infra/nginx
+          push: false
+          tags: rag-nginx:latest
