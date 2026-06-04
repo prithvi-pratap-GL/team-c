@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
@@ -66,7 +66,7 @@ class IngestMetadata(BaseModel):
     department: Department
     category: Category
     version: str = Field(..., min_length=1)
-    doc_date: date
+    doc_date: str = Field(..., description="Date in ISO 8601 format (YYYY-MM-DD)")
     chunking_strategy: ChunkingStrategy = ChunkingStrategy.fixed
 
 
@@ -114,7 +114,7 @@ class DocumentSummary(BaseModel):
     department: Department
     category: Category
     version: str
-    doc_date: date
+    doc_date: str
     chunk_count: int
 
 

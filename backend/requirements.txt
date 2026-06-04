@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+PyJWT
+pypdf
+langchain
+langchain-text-splitters
+sentence-transformers
+qdrant-client
+fastembed
+groq
+python-multipart

@@ -9,6 +9,11 @@ from app.services.auth_service import authenticate_user, create_access_token
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@router.options("/login")
+def options_login():
+    return {}
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, payload.username, payload.password)

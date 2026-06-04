@@ -10,6 +10,11 @@ from app.services.feedback_service import record_feedback
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
+@router.options("")
+def options_feedback():
+    return {}
+
+
 @router.post("", response_model=FeedbackResponse)
 def feedback(
     payload: FeedbackRequest,

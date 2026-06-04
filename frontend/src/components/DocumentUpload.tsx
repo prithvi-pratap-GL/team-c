@@ -31,7 +31,22 @@ export function DocumentUpload({ token, onUploaded }: DocumentUploadProps) {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!file) {
-      setStatus("⚠️ Choose a file first");
+      setStatus("Choose a file first");
+      setTimeout(() => setStatus(""), 5000);
+      return;
+    }
+    if (!metadata.department) {
+      setStatus("Select a department");
+      setTimeout(() => setStatus(""), 5000);
+      return;
+    }
+    if (!metadata.category) {
+      setStatus("Select a category");
+      setTimeout(() => setStatus(""), 5000);
+      return;
+    }
+    if (!metadata.version.trim()) {
+      setStatus("Enter a version");
       setTimeout(() => setStatus(""), 5000);
       return;
     }
@@ -156,7 +171,7 @@ export function DocumentUpload({ token, onUploaded }: DocumentUploadProps) {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !file}
             className={`upload-button ${loading ? "uploading" : ""}`}
           >
             {loading ? "Uploading document..." : "Upload document"}

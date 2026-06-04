@@ -22,6 +22,11 @@ from app.rag.generation.groq_client import GroqClientService
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+@router.options("")
+def options_chat():
+    return {}
+
+
 @router.post("", response_model=ChatResponse)
 def chat(
     payload: ChatRequest,

@@ -21,6 +21,11 @@ from app.services.document_service import create_document, list_documents
 router = APIRouter(tags=["documents"])
 
 
+@router.options("/ingest")
+async def options_ingest():
+    return {}
+
+
 @router.post("/ingest", response_model=IngestResponse, status_code=status.HTTP_202_ACCEPTED)
 async def ingest_document(
     file: UploadFile = File(...),
@@ -30,8 +35,10 @@ async def ingest_document(
 ):
     try:
         parsed_metadata = IngestMetadata.parse_obj(json.loads(metadata))
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"metadata is not valid JSON: {str(exc)}")
     except Exception as exc:
-        raise HTTPException(status_code=400, detail="metadata must be valid JSON") from exc
+        raise HTTPException(status_code=400, detail=f"Invalid metadata: {str(exc)}")
 
     content = await file.read()
     if not content:
@@ -39,6 +46,11 @@ async def ingest_document(
 
     document = create_document(db, file, content, parsed_metadata, current_user)
     return IngestResponse(job_id=str(uuid.uuid4()), doc_id=document.doc_id)
+
+
+@router.options("/documents")
+def options_documents():
+    return {}
 
 
 @router.get("/documents", response_model=DocumentsResponse)
@@ -66,7 +78,7 @@ def get_documents(
                 department=doc.department,
                 category=doc.category,
                 version=doc.version,
-                doc_date=doc.doc_date,
+                doc_date=doc.doc_date.isoformat() if doc.doc_date else "",
                 chunk_count=doc.chunk_count,
             )
             for doc in docs

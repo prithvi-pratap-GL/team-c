@@ -14,12 +14,17 @@ settings = get_settings()
 
 app = FastAPI(title=settings.app_name)
 
+print(f"\n=== CORS Configuration ===")
+print(f"Allowed Origins: {settings.cors_origins}")
+print(f"===========================\n")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(auth.router, prefix=settings.api_prefix)
