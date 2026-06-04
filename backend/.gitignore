@@ -10,3 +10,4 @@
 /storage/
 *.index
 .venv/
+test.py
