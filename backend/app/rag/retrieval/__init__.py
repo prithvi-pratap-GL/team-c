@@ -1,9 +1,9 @@
 """Retrieval module for vector search, filtering, and reranking."""
 
-from rag.retrieval.hybrid_retriever import HybridRetriever
-from rag.retrieval.metadata_filter import MetadataFilterBuilder
-from rag.retrieval.rerankers import Reranker, get_reranker
-from rag.retrieval.vector_retriever import VectorRetriever
+from app.rag.retrieval.hybrid_retriever import HybridRetriever
+from app.rag.retrieval.metadata_filter import MetadataFilterBuilder
+from app.rag.retrieval.rerankers import Reranker, get_reranker
+from app.rag.retrieval.vector_retriever import VectorRetriever
 
 __all__ = [
     "VectorRetriever",

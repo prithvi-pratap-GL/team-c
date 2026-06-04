@@ -3,8 +3,8 @@
 import logging
 from typing import Optional
 
-from rag.retrieval.rerankers import get_reranker
-from rag.retrieval.vector_retriever import VectorRetriever
+from app.rag.retrieval.rerankers import get_reranker
+from app.rag.retrieval.vector_retriever import VectorRetriever
 
 # Optional is used in retrieve() method signature
 

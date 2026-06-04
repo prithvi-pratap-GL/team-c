@@ -2,8 +2,8 @@
 
 import logging
 
-from rag.generation import GroqClientService, PromptBuilder
-from rag.retrieval import HybridRetriever, MetadataFilterBuilder
+from app.rag.generation import GroqClientService, PromptBuilder
+from app.rag.retrieval import HybridRetriever, MetadataFilterBuilder
 
 logging.basicConfig(
     level=logging.INFO,

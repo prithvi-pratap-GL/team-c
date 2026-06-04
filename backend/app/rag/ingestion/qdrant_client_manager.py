@@ -1,59 +1,101 @@
-"""Qdrant client manager. Frozen contract."""
+"""Qdrant client initialization and collection management."""
 
 import logging
+import os
 from typing import Optional
+from dotenv import load_dotenv
+
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
 class QdrantClientManager:
-    """Qdrant client manager. Frozen ingestion contract.
+    """Manages Qdrant client lifecycle and collection initialization."""
 
-    Manages connections to Qdrant vector database.
-    Collection: enterprise_docs
-    Distance: COSINE
-    Dimension: 768
-    """
+    _instance: Optional["QdrantClientManager"] = None
+    _client: Optional[QdrantClient] = None
 
-    def __init__(
-        self,
-        url: str = "http://localhost:6333",
-        api_key: Optional[str] = None,
-    ):
-        """Initialize Qdrant client manager.
+    COLLECTION_NAME = "enterprise_docs"
+    VECTOR_SIZE = 768
+    DISTANCE_METRIC = Distance.COSINE
 
-        Args:
-            url: Qdrant server URL. Default: http://localhost:6333
-            api_key: Optional Qdrant API key.
-        """
-        from qdrant_client import QdrantClient
+    def __new__(cls) -> "QdrantClientManager":
+        """Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
-        self.client = QdrantClient(url=url, api_key=api_key)
-        self.collection_name = "enterprise_docs"
-        logger.info(f"Qdrant client initialized: {url}, collection={self.collection_name}")
-
-    def get_client(self):
-        """Get the Qdrant client instance.
-
-        Returns:
-            Qdrant client for direct operations.
-        """
-        return self.client
-
-    def search(self, vector: list[float], limit: int = 10, query_filter=None):
-        """Search in enterprise_docs collection.
+    def __init__(self,url: Optional[str] = None,api_key: Optional[str]=None) -> None:
+        """Initialize Qdrant client.
 
         Args:
-            vector: Query vector (768-dimensional).
-            limit: Number of results to return.
-            query_filter: Optional Qdrant filter.
+            url: Qdrant server URL. Defaults to localhost.
+        """
+        if self._client is None:
+            if url is None:
+                url = os.getenv("QDRANT_URL")
+
+            if api_key is None:
+                api_key = os.getenv("QDRANT_API_KEY")
+
+            logger.info(f"Initializing Qdrant client at {url}")
+
+            self._client = QdrantClient(
+                url=url,
+                api_key=api_key,
+            )
+
+            self._url = url
+
+    def get_client(self) -> QdrantClient:
+        """Get or create Qdrant client.
 
         Returns:
-            Search results from Qdrant.
+            QdrantClient instance.
         """
-        return self.client.search(
-            collection_name=self.collection_name,
-            query_vector=vector,
-            limit=limit,
-            query_filter=query_filter,
-        )
+        if self._client is None:
+            self.__init__()
+        return self._client
+
+    def create_collection(self) -> None:
+        """Create collection if it doesn't exist.
+
+        Collection is configured with:
+        - Vector size: 768 (BAAI/bge-base-en-v1.5)
+        - Distance metric: COSINE
+        - Name: enterprise_docs
+        """
+        client = self.get_client()
+
+        try:
+            client.get_collection(self.COLLECTION_NAME)
+            logger.info(f"Collection '{self.COLLECTION_NAME}' already exists")
+        except Exception as e:
+            logger.info(f"Creating collection '{self.COLLECTION_NAME}'")
+            client.create_collection(
+                collection_name=self.COLLECTION_NAME,
+                vectors_config=VectorParams(
+                    size=self.VECTOR_SIZE,
+                    distance=self.DISTANCE_METRIC,
+                ),
+            )
+            logger.info(f"Collection '{self.COLLECTION_NAME}' created successfully")
+
+    def health_check(self) -> bool:
+        """Check if Qdrant server is healthy.
+
+        Returns:
+            True if server is accessible, False otherwise.
+        """
+        try:
+            client = self.get_client()
+            client.get_collections()
+            logger.info("Qdrant health check passed")
+            return True
+        except Exception as e:
+            logger.error(f"Qdrant health check failed: {e}")
+            return False
