@@ -1,0 +1,13 @@
+.env
+.env.*
+*.pdf
+*.txt
+*.csv
+*.docx
+*.md
+/qdrant_data/
+/vector_store/
+/storage/
+*.index
+.venv/
+test.py
