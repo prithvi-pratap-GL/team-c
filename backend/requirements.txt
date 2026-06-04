@@ -7,3 +7,8 @@ passlib
 python-multipart
 python-dotenv
 pypdf
+qdrant-client
+sentence-transformers
+langchain-text-splitters
+numpy
+groq

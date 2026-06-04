@@ -19,10 +19,13 @@ class Settings(BaseModel):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
-    cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
-    chunk_size: int = 1200
-    chunk_overlap: int = 150
     max_sources: int = 5
     min_retrieval_score: float = 0.08
 

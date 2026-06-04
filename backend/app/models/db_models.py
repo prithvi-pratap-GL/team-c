@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, create_engine
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text, create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import get_settings
 
@@ -43,21 +43,6 @@ class Document(Base):
     chunk_count = Column(Integer, nullable=False, default=0)
     uploaded_by = Column(String(80), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
-
-
-class Chunk(Base):
-    __tablename__ = "chunks"
-
-    id = Column(Integer, primary_key=True, index=True)
-    chunk_id = Column(String(80), unique=True, index=True, nullable=False)
-    doc_id = Column(String(64), ForeignKey("documents.doc_id"), index=True, nullable=False)
-    chunk_text = Column(Text, nullable=False)
-    page = Column(Integer, nullable=True)
-    char_offset = Column(Integer, nullable=False, default=0)
-
-    document = relationship("Document", back_populates="chunks")
 
 
 class Feedback(Base):

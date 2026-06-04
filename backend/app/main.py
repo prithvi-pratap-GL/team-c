@@ -1,13 +1,20 @@
 from datetime import datetime
+from pathlib import Path
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from app.config import get_settings
 from app.models.db_models import SessionLocal, create_tables
 from app.models.schemas import HealthResponse
 from app.routers import auth, chat, feedback, ingest
 from app.services.auth_service import seed_demo_users
+from rag.ingestion.qdrant_client_manager import QdrantClientManager
 
 
 settings = get_settings()
@@ -41,3 +48,14 @@ def startup() -> None:
 @app.get("/", response_model=HealthResponse)
 def root():
     return {"message": "Backend Running", "timestamp": datetime.utcnow()}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/qdrant-health")
+def qdrant_health():
+    qdrant = QdrantClientManager()
+    return {"qdrant": qdrant.health_check()}

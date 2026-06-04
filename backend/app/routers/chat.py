@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -8,7 +8,10 @@ from app.middleware.rbac import allowed_departments, get_current_user
 from app.models import db_models
 from app.models.db_models import get_db
 from app.models.schemas import ChatRequest, ChatResponse, Confidence, Source, TokenUser
-from app.services.document_service import search_chunks
+from rag.generation.groq_client import GroqClientService
+from rag.generation.prompt_builder import PromptBuilder
+from rag.retrieval.hybrid_retriever import HybridRetriever
+from rag.retrieval.metadata_filter import MetadataFilterBuilder
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -23,17 +26,23 @@ def chat(
     settings = get_settings()
     session_id = payload.session_id or str(uuid.uuid4())
     departments = allowed_departments(current_user, payload.filters.department)
-
-    results = search_chunks(
-        db,
-        query_text=payload.query,
-        departments=departments,
-        category=payload.filters.category.value if payload.filters.category else None,
-        year=payload.filters.year,
-        limit=settings.max_sources,
+    qdrant_filter = MetadataFilterBuilder.combined_filter(
+        departments=[department.value for department in departments],
+        categories=[payload.filters.category.value] if payload.filters.category else None,
     )
 
-    top_score = results[0][1] if results else 0
+    try:
+        results = HybridRetriever().retrieve(
+            payload.query,
+            top_k=10,
+            rerank=True,
+            rerank_top_k=settings.max_sources,
+            query_filter=qdrant_filter,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Retrieval failed: {exc}") from exc
+
+    top_score = float(results[0].get("score", 0)) if results else 0
     if top_score < settings.min_retrieval_score:
         answer = "I cannot find this in the knowledge base for your access level."
         response = ChatResponse(
@@ -46,20 +55,23 @@ def chat(
     else:
         sources = [
             Source(
-                doc_id=chunk.document.doc_id,
-                doc_name=chunk.document.doc_name,
-                department=chunk.document.department,
-                chunk_text=chunk.chunk_text[:200],
-                chunk_id=chunk.chunk_id,
-                score=score,
-                page=chunk.page,
+                doc_id=str(result.get("metadata", {}).get("doc_id", "")),
+                doc_name=str(result.get("metadata", {}).get("doc_name", "Unknown Document")),
+                department=result.get("metadata", {}).get("department") or departments[0].value,
+                chunk_text=str(result.get("chunk_text", ""))[:200],
+                chunk_id=str(result.get("metadata", {}).get("chunk_id", "")),
+                score=float(result.get("score", 0)),
+                page=None,
             )
-            for chunk, score in results
+            for result in results
         ]
-        answer = (
-            f"Based on the available knowledge base, the most relevant source says: "
-            f"{results[0][0].chunk_text[:700]}"
-        )
+
+        try:
+            system_prompt, user_prompt = PromptBuilder.build_prompt(payload.query, results)
+            answer = GroqClientService().generate(system_prompt, user_prompt)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Generation failed: {exc}") from exc
+
         response = ChatResponse(
             answer=answer,
             sources=sources,
