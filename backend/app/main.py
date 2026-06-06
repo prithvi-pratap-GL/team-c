@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from fastapi import FastAPI
@@ -8,6 +9,11 @@ from app.models.db_models import SessionLocal, create_tables
 from app.models.schemas import HealthResponse
 from app.routers import auth, chat, feedback, ingest
 from app.services.auth_service import seed_demo_users
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 
 settings = get_settings()
