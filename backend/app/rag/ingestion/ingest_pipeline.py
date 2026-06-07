@@ -32,7 +32,7 @@ class IngestPipeline:
         self,
         file_path: str,
         metadata: Dict[str, Any],
-        chunking_strategy: Literal["fixed", "advanced"] = "fixed",
+        chunking_strategy: Literal["fixed", "semantic"] = "fixed",
     ) -> Dict[str, Any]:
         """Ingest a single document with specified chunking strategy.
 
@@ -47,7 +47,7 @@ class IngestPipeline:
         Args:
             file_path: Path to document.
             metadata: User-provided metadata (department, category, version, date).
-            chunking_strategy: 'fixed' or 'advanced'. Defaults to 'fixed'.
+            chunking_strategy: 'fixed' or 'semantic'. Defaults to 'fixed'.
 
         Returns:
             Dictionary with:
@@ -86,13 +86,15 @@ class IngestPipeline:
 
             # Step 3: Select chunking strategy
             if chunking_strategy == "fixed":
+                logger.info("Selected chunking strategy: fixed")
                 chunks = self.fixed_chunker.chunk(parsed["text"])
-            elif chunking_strategy == "advanced":
+            elif chunking_strategy == "semantic":
+                logger.info("Selected chunking strategy: semantic (using AdvancedChunker)")
                 chunks = self.advanced_chunker.chunk(parsed["text"])
             else:
                 raise ValueError(f"Unknown chunking strategy: {chunking_strategy}")
 
-            logger.info(f"Text chunked: {len(chunks)} chunks")
+            logger.info(f"Text chunked: {len(chunks)} chunks using {chunking_strategy}")
 
             # Step 4: Embed chunks
             chunk_texts = [chunk["chunk_text"] for chunk in chunks]
@@ -123,10 +125,12 @@ class IngestPipeline:
             }
 
         except Exception as e:
-            logger.error(f"Ingestion failed: {e}")
+            logger.error(f"Ingestion failed: {e}", exc_info=True)
             return {
                 "status": "error",
                 "error": str(e),
+                "chunks_created": 0,
+                "chunking_strategy": chunking_strategy,
             }
 
     def _upsert_to_qdrant(
