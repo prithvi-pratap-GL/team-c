@@ -11,3 +11,7 @@
 *.index
 .venv/
 test.py
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
