@@ -3,10 +3,10 @@
 import logging
 from typing import Optional
 
+from qdrant_client.models import Filter
+
 from app.rag.retrieval.rerankers import get_reranker
 from app.rag.retrieval.vector_retriever import VectorRetriever
-
-# Optional is used in retrieve() method signature
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ class HybridRetriever:
         top_k: int = 10,
         rerank: bool = True,
         rerank_top_k: Optional[int] = None,
+        query_filter: Optional[Filter] = None,
     ) -> list[dict]:
         """Retrieve documents using hybrid strategy.
 
@@ -47,6 +48,7 @@ class HybridRetriever:
             rerank: Whether to apply cross-encoder reranking.
             rerank_top_k: Number of results to return after reranking.
                          If None, defaults to top_k.
+            query_filter: Optional Qdrant filter to scope results (e.g., by department).
 
         Returns:
             List of results with scores and metadata.
@@ -60,10 +62,18 @@ class HybridRetriever:
             raise ValueError("Query must be a non-empty string")
 
         try:
-            logger.debug(f"Hybrid retrieval: query='{query[:100]}...', top_k={top_k}, rerank={rerank}")
+            logger.debug(
+                f"Hybrid retrieval: query='{query[:100]}...', top_k={top_k}, "
+                f"rerank={rerank}" + (f", filter={query_filter}" if query_filter else "")
+            )
 
-            vector_results = self.vector_retriever.retrieve(query, top_k=top_k)
-            logger.info(f"Vector retrieval returned {len(vector_results)} results")
+            vector_results = self.vector_retriever.retrieve(
+                query, top_k=top_k, query_filter=query_filter
+            )
+            logger.info(
+                f"Vector retrieval returned {len(vector_results)} results"
+                + (" (with filter)" if query_filter else "")
+            )
 
             if not rerank:
                 logger.debug("Reranking disabled, returning vector results")

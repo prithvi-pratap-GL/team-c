@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { api, Category, Department, DocumentSummary, IngestMetadata } from "../api/client";
 
 interface DocumentUploadProps {
@@ -28,7 +28,7 @@ export function DocumentUpload({ token, onUploaded }: DocumentUploadProps) {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function submit(event: FormEvent) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file) {
       setStatus("⚠️ Choose a file first");
@@ -37,14 +37,17 @@ export function DocumentUpload({ token, onUploaded }: DocumentUploadProps) {
     }
 
     setLoading(true);
-    setStatus("");
+    setStatus("📤 Uploading document...");
     try {
       const response = await api.ingest(token, file, metadata);
-      setStatus(`Uploaded ${response.doc_id}`);
+      setStatus(`✅ Document queued! Processing in background. ID: ${response.doc_id}`);
       setFile(null);
-      onUploaded();
+      setTimeout(() => onUploaded(), 500);
+      // Clear status after 5 seconds
+      setTimeout(() => setStatus(""), 5000);
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Upload failed");
+      const message = err instanceof Error ? err.message : "Upload failed";
+      setStatus(`❌ Error: ${message}`);
     } finally {
       setLoading(false);
     }

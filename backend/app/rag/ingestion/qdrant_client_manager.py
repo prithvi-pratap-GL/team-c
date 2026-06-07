@@ -6,7 +6,7 @@ from typing import Optional
 from dotenv import load_dotenv
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import Distance, VectorParams, KeywordIndexParams, KeywordIndexType
 
 load_dotenv()
 
@@ -68,12 +68,15 @@ class QdrantClientManager:
         - Vector size: 768 (BAAI/bge-base-en-v1.5)
         - Distance metric: COSINE
         - Name: enterprise_docs
+        - Payload indexes: department, category, document_type, doc_name
         """
         client = self.get_client()
 
         try:
             client.get_collection(self.COLLECTION_NAME)
             logger.info(f"Collection '{self.COLLECTION_NAME}' already exists")
+            # Ensure payload indexes exist (migrate if needed)
+            self._ensure_payload_indexes(client)
         except Exception as e:
             logger.info(f"Creating collection '{self.COLLECTION_NAME}'")
             client.create_collection(
@@ -84,6 +87,45 @@ class QdrantClientManager:
                 ),
             )
             logger.info(f"Collection '{self.COLLECTION_NAME}' created successfully")
+            # Create payload indexes for filtering
+            self._ensure_payload_indexes(client)
+
+    def _ensure_payload_indexes(self, client: QdrantClient) -> None:
+        """Ensure required payload indexes exist for filtering.
+
+        Creates keyword indexes for:
+        - department: RBAC filtering
+        - category: Category-based filtering
+        - document_type: Document type filtering
+        - doc_name: Document name filtering
+
+        Args:
+            client: QdrantClient instance
+        """
+        fields_to_index = [
+            "department",
+            "category",
+            "document_type",
+            "doc_name",
+        ]
+
+        for field_name in fields_to_index:
+            try:
+                client.create_payload_index(
+                    collection_name=self.COLLECTION_NAME,
+                    field_name=field_name,
+                    field_schema=KeywordIndexParams(
+                        type=KeywordIndexType.KEYWORD,
+                    ),
+                )
+                logger.info(
+                    f"Payload index created/verified for field '{field_name}' "
+                    f"in collection '{self.COLLECTION_NAME}'"
+                )
+            except Exception as e:
+                logger.debug(
+                    f"Index for field '{field_name}' may already exist: {e}"
+                )
 
     def health_check(self) -> bool:
         """Check if Qdrant server is healthy.

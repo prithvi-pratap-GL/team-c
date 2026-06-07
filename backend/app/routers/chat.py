@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends
@@ -16,8 +17,11 @@ from app.models.schemas import (
 )
 
 from app.rag.retrieval.hybrid_retriever import HybridRetriever
+from app.rag.retrieval.metadata_filter import MetadataFilterBuilder
 from app.rag.generation.prompt_builder import PromptBuilder
 from app.rag.generation.groq_client import GroqClientService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -38,16 +42,34 @@ def chat(
         payload.filters.department,
     )
 
+    # Build Qdrant filter for department + optional category
+    query_filter = MetadataFilterBuilder.combined_filter(
+        departments=departments,
+        categories=[payload.filters.category] if payload.filters.category else None,
+    )
+    logger.debug(
+        f"Chat query filter: departments={departments}, "
+        f"category={payload.filters.category}"
+    )
+
     retriever = HybridRetriever()
 
-    # TODO:
-    # Wire MetadataFilterBuilder later using departments
     results = retriever.retrieve(
         query=payload.query,
         top_k=settings.max_sources,
+        query_filter=query_filter,
     )
 
     top_score = results[0]["score"] if results else 0
+
+    # Enforce min retrieval score threshold
+    if results and top_score < settings.min_retrieval_score:
+        logger.warning(
+            f"Top retrieval score {top_score} below threshold "
+            f"{settings.min_retrieval_score}, returning not_found"
+        )
+        results = []
+        top_score = 0
 
     if not results:
         response = ChatResponse(
