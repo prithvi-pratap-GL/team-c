@@ -67,7 +67,12 @@ export interface IngestResponse {
   doc_id: string;
 }
 
-async function request<T>(path: string, token: string | null, init: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  token: string | null,
+  init: RequestInit = {},
+  timeoutMs: number = 30000
+): Promise<T> {
   const headers = new Headers(init.headers);
   if (!(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -76,15 +81,33 @@ async function request<T>(path: string, token: string | null, init: RequestInit 
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
-  const data = await response.json().catch(() => ({}));
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    const message = typeof data.detail === "string" ? data.detail : "Request failed";
-    throw new Error(message);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const message = typeof data.detail === "string" ? data.detail : "Request failed";
+      throw new Error(message);
+    }
+
+    return data as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `Request timeout after ${timeoutMs / 1000}s. The server is still processing. Check backend logs for progress.`
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return data as T;
 }
 
 export const api = {
@@ -114,10 +137,15 @@ export const api = {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("metadata", JSON.stringify(metadata));
-    return request<IngestResponse>("/ingest", token, {
-      method: "POST",
-      body: formData,
-    });
+    return request<IngestResponse>(
+      "/ingest",
+      token,
+      {
+        method: "POST",
+        body: formData,
+      },
+      30000 // 30 seconds (returns immediately, embedding happens in background)
+    );
   },
 
   feedback(token: string, payload: { session_id: string; query: string; helpful: boolean; comment?: string }) {

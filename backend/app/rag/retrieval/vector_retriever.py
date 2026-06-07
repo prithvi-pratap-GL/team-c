@@ -1,6 +1,9 @@
 """Dense vector retrieval from Qdrant."""
 
 import logging
+from typing import Optional
+
+from qdrant_client.models import Filter
 
 from app.rag.ingestion.embedder import Embedder
 from app.rag.ingestion.qdrant_client_manager import QdrantClientManager
@@ -22,12 +25,15 @@ class VectorRetriever:
         self.embedder = Embedder()
         logger.info("VectorRetriever initialized with ingestion contracts")
 
-    def retrieve(self, query: str, top_k: int = 10) -> list[dict]:
+    def retrieve(
+        self, query: str, top_k: int = 10, query_filter: Optional[Filter] = None
+    ) -> list[dict]:
         """Retrieve top-k results from Qdrant for a query.
 
         Args:
             query: User query string.
             top_k: Number of results to retrieve.
+            query_filter: Optional Qdrant filter to scope results (e.g., by department).
 
         Returns:
             List of results with score and metadata.
@@ -43,12 +49,16 @@ class VectorRetriever:
 
             client = self.qdrant.get_client()
 
-            logger.debug(f"Searching Qdrant for top {top_k} results")
+            logger.debug(
+                f"Searching Qdrant for top {top_k} results"
+                + (f" with filter" if query_filter else "")
+            )
 
             search_response = client.query_points(
                 collection_name=self.qdrant.COLLECTION_NAME,
                 query=query_vector,
                 limit=top_k,
+                query_filter=query_filter,
             )
 
             results = []
