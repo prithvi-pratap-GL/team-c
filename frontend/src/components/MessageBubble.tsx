@@ -1,6 +1,6 @@
 import { ChatResponse } from "../api/client";
 import { FeedbackButtons } from "./FeedbackButtons";
-import { SourceCard } from "./SourceCard";
+import { SourcesList } from "./SourceCard";
 
 export interface Message {
   id: string;
@@ -21,21 +21,30 @@ export function MessageBubble({ message, token }: MessageBubbleProps) {
   return (
     <div className={`message-row ${message.role}`}>
       <div className="message-bubble">
-        <p>{message.text}</p>
-        {isAssistant && message.response && (
+        {isAssistant ? (
           <>
-            <div className={`confidence ${message.response.confidence}`}>{message.response.confidence}</div>
-            {message.response.sources.length > 0 && (
-              <div className="sources-list">
-                {message.response.sources.map((source) => (
-                  <SourceCard key={source.chunk_id} source={source} />
-                ))}
+            {message.response && (
+              <div className={`confidence ${message.response.confidence}`}>
+                {message.response.confidence === "high" && "● "}
+                {message.response.confidence === "low" && "◐ "}
+                {message.response.confidence === "not_found" && "○ "}
+                {message.response.confidence.replace("_", " ")}
               </div>
             )}
-            {message.query && (
-              <FeedbackButtons token={token} sessionId={message.response.session_id} query={message.query} />
+            <div className="assistant-answer">{message.text}</div>
+            {isAssistant && message.response && message.response.sources.length > 0 && (
+              <SourcesList sources={message.response.sources} />
+            )}
+            {message.query && message.response && (
+              <FeedbackButtons
+                token={token}
+                sessionId={message.response.session_id}
+                query={message.query}
+              />
             )}
           </>
+        ) : (
+          <p>{message.text}</p>
         )}
       </div>
     </div>
