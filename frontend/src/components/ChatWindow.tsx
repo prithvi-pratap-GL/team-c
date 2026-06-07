@@ -9,7 +9,6 @@ interface ChatWindowProps {
   allowedDepartments: Department[];
 }
 
-// Trial Phase: Updated with new chat header design including filter modal and retrieval mode buttons
 export function ChatWindow({ token, allowedDepartments }: ChatWindowProps) {
   const chat = useChat(token);
   const [showFilters, setShowFilters] = useState(false);
@@ -39,6 +38,7 @@ export function ChatWindow({ token, allowedDepartments }: ChatWindowProps) {
       )}
 
       <div className="chat-panel">
+        {/* Header */}
         <div className="chat-header">
           <div className="active-filters">
             <button
@@ -46,7 +46,12 @@ export function ChatWindow({ token, allowedDepartments }: ChatWindowProps) {
               onClick={() => setShowFilters(true)}
               type="button"
             >
-              <span className="filter-icon">⚙️</span> Filters
+              <span className="filter-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+                </svg>
+              </span>
+              Filters
             </button>
             {chat.filters.department && (
               <span className="filter-chip">
@@ -55,9 +60,7 @@ export function ChatWindow({ token, allowedDepartments }: ChatWindowProps) {
                   className="chip-close"
                   onClick={() => chat.setFilters({ ...chat.filters, department: undefined })}
                   type="button"
-                >
-                  ×
-                </button>
+                >×</button>
               </span>
             )}
             {chat.filters.category && (
@@ -67,9 +70,7 @@ export function ChatWindow({ token, allowedDepartments }: ChatWindowProps) {
                   className="chip-close"
                   onClick={() => chat.setFilters({ ...chat.filters, category: undefined })}
                   type="button"
-                >
-                  ×
-                </button>
+                >×</button>
               </span>
             )}
           </div>
@@ -78,45 +79,60 @@ export function ChatWindow({ token, allowedDepartments }: ChatWindowProps) {
               className={`mode-btn ${chat.retrievalMode === "hybrid" ? "active" : ""}`}
               onClick={() => chat.setRetrievalMode("hybrid")}
               type="button"
-            >
-              Hybrid
-            </button>
+            >Hybrid</button>
             <button
               className={`mode-btn ${chat.retrievalMode === "vector" ? "active" : ""}`}
               onClick={() => chat.setRetrievalMode("vector")}
               type="button"
-            >
-              Vector
-            </button>
+            >Vector</button>
           </div>
         </div>
 
+        {/* Messages */}
         <div className="chat-history">
           {chat.messages.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">💬</div>
-              <h2>Ask across your knowledge base</h2>
-              <p>Try a policy, guide, or incident query after uploading documents</p>
+              <div className="empty-icon">⌕</div>
+              <h2>Ask your knowledge base</h2>
+              <p>Query policies, guides, incident reports, and more — with source-linked answers.</p>
             </div>
           ) : (
-            chat.messages.map((message) => <MessageBubble key={message.id} message={message} token={token} />)
+            chat.messages.map((message) => (
+              <MessageBubble key={message.id} message={message} token={token} />
+            ))
           )}
+          {chat.error && <p className="error-text">⚠ {chat.error}</p>}
         </div>
 
-        {chat.error && <p className="error-text">⚠️ {chat.error}</p>}
-
-        <form className="composer" onSubmit={chat.submit}>
-          <textarea
-            value={chat.query}
-            onChange={(event) => chat.setQuery(event.target.value)}
-            placeholder="Ask a question..."
-            rows={2}
-            className="chat-input"
-          />
-          <button className="send-button" disabled={chat.loading} type="submit">
-            {chat.loading ? "⊙" : "➤"}
-          </button>
-        </form>
+        {/* Composer */}
+        <div className="composer-strip">
+          <form className="composer" onSubmit={chat.submit}>
+            <textarea
+              value={chat.query}
+              onChange={(e) => chat.setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void chat.submit();
+                }
+              }}
+              placeholder="Ask a question…"
+              rows={1}
+              className="chat-input"
+            />
+            <button className="send-button" disabled={chat.loading} type="submit">
+              {chat.loading ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+                </svg>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </section>
   );
