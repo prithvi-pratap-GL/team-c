@@ -15,6 +15,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
+logger = logging.getLogger(__name__)
+
 
 settings = get_settings()
 
@@ -42,6 +44,12 @@ def startup() -> None:
         seed_demo_users(db)
     finally:
         db.close()
+
+    # Ensure Qdrant collection and payload indexes exist
+    from app.rag.ingestion.qdrant_client_manager import QdrantClientManager
+    qdrant_manager = QdrantClientManager()
+    qdrant_manager.create_collection()
+    logger.info("Qdrant collection and indexes initialized")
 
 
 @app.get("/", response_model=HealthResponse)
