@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -62,6 +62,14 @@ class TokenUser(BaseModel):
     departments_allowed: List[Department]
 
 
+class UserProfile(BaseModel):
+    id: int
+    username: str
+    role: Role
+    departments_allowed: List[Department]
+    created_at: datetime
+
+
 class IngestMetadata(BaseModel):
     department: Department
     category: Category
@@ -107,6 +115,47 @@ class ChatResponse(BaseModel):
     confidence: Confidence
     session_id: str
 
+
+# ── Chat Session schemas ─────────────────────────────────────────────
+
+class ChatSessionCreate(BaseModel):
+    title: Optional[str] = "New Conversation"
+
+
+class ChatSessionResponse(BaseModel):
+    id: int
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ChatMessageResponse(BaseModel):
+    id: int
+    session_id: int
+    role: str
+    content: str
+    meta_json: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SessionChatRequest(BaseModel):
+    """Used for POST /chat/sessions/{id}/messages"""
+    query: str = Field(..., min_length=1)
+    filters: ChatFilters = Field(default_factory=ChatFilters)
+    retrieval_mode: RetrievalMode = RetrievalMode.hybrid
+
+
+class SuggestionsResponse(BaseModel):
+    suggestions: List[str]
+
+
+# ── Documents / Feedback / Health (unchanged) ────────────────────────
 
 class DocumentSummary(BaseModel):
     doc_id: str

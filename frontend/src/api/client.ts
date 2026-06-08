@@ -12,6 +12,14 @@ export interface LoginResponse {
   departments_allowed: Department[];
 }
 
+export interface UserProfile {
+  id: number;
+  username: string;
+  role: string;
+  departments_allowed: Department[];
+  created_at: string;
+}
+
 export interface ChatFilters {
   department?: Department;
   category?: Category;
@@ -35,6 +43,22 @@ export interface ChatResponse {
   retrieval_mode_used: RetrievalMode;
   confidence: Confidence;
   session_id: string;
+}
+
+export interface ChatSession {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: number;
+  session_id: number;
+  role: "user" | "assistant";
+  content: string;
+  meta_json?: string | null;
+  created_at: string;
 }
 
 export interface DocumentSummary {
@@ -101,7 +125,7 @@ async function request<T>(
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(
-        `Request timeout after ${timeoutMs / 1000}s. The server is still processing. Check backend logs for progress.`
+        `Request timeout after ${timeoutMs / 1000}s. The server is still processing.`
       );
     }
     throw error;
@@ -118,11 +142,51 @@ export const api = {
     });
   },
 
+  getProfile(token: string) {
+    return request<UserProfile>("/users/me", token);
+  },
+
+  // Legacy chat (kept for compatibility)
   chat(token: string, payload: { query: string; filters: ChatFilters; retrieval_mode: RetrievalMode; session_id?: string }) {
     return request<ChatResponse>("/chat", token, {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+
+  // Session endpoints
+  createSession(token: string, title?: string) {
+    return request<ChatSession>("/chat/sessions", token, {
+      method: "POST",
+      body: JSON.stringify({ title: title ?? "New Conversation" }),
+    });
+  },
+
+  listSessions(token: string) {
+    return request<ChatSession[]>("/chat/sessions", token);
+  },
+
+  deleteSession(token: string, sessionId: number) {
+    return request<void>(`/chat/sessions/${sessionId}`, token, { method: "DELETE" });
+  },
+
+  getMessages(token: string, sessionId: number) {
+    return request<ChatMessage[]>(`/chat/sessions/${sessionId}/messages`, token);
+  },
+
+  sendMessage(
+    token: string,
+    sessionId: number,
+    payload: { query: string; filters: ChatFilters; retrieval_mode: RetrievalMode }
+  ) {
+    return request<ChatResponse>(`/chat/sessions/${sessionId}/messages`, token, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getSuggestions(token: string) {
+    return request<{ suggestions: string[] }>("/chat/suggestions", token);
   },
 
   listDocuments(token: string, filters: { department?: Department; category?: Category } = {}) {
@@ -137,15 +201,7 @@ export const api = {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("metadata", JSON.stringify(metadata));
-    return request<IngestResponse>(
-      "/ingest",
-      token,
-      {
-        method: "POST",
-        body: formData,
-      },
-      30000 // 30 seconds (returns immediately, embedding happens in background)
-    );
+    return request<IngestResponse>("/ingest", token, { method: "POST", body: formData }, 30000);
   },
 
   feedback(token: string, payload: { session_id: string; query: string; helpful: boolean; comment?: string }) {

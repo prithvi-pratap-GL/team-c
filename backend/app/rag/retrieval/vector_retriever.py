@@ -63,13 +63,25 @@ class VectorRetriever:
 
             results = []
 
-            for point in search_response.points:
+            logger.debug("=" * 80)
+            logger.debug("QDRANT RETRIEVAL RESULTS")
+            logger.debug("=" * 80)
+
+            for idx, point in enumerate(search_response.points, 1):
                 payload = point.payload or {}
+                chunk_text = payload.get("chunk_text", "")
+                chunk_preview = chunk_text[:100] if chunk_text else "N/A"
+
+                logger.debug(f"\nChunk {idx}:")
+                logger.debug(f"  Qdrant Score: {point.score:.4f}")
+                logger.debug(f"  Chunk ID: {payload.get('chunk_id')}")
+                logger.debug(f"  Department: {payload.get('department')}")
+                logger.debug(f"  Preview: {chunk_preview}...")
 
                 results.append(
                     {
                         "score": point.score,
-                        "chunk_text": payload.get("chunk_text", ""),
+                        "chunk_text": chunk_text,
                         "metadata": {
                             "chunk_id": payload.get("chunk_id"),
                             "doc_id": payload.get("doc_id"),
@@ -86,6 +98,7 @@ class VectorRetriever:
                     }
                 )
 
+            logger.debug("=" * 80)
             logger.info(f"Retrieved {len(results)} results for query")
             return results
 

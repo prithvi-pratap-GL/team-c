@@ -88,15 +88,43 @@ class Reranker:
 
             scores = self.model.predict(pairs)
 
+            logger.debug("=" * 80)
+            logger.debug("RERANKER SCORES (BEFORE SORTING)")
+            logger.debug("=" * 80)
+
             ranked_results = []
             for idx, score in enumerate(scores):
                 result = results[idx].copy()
                 result["rerank_score"] = float(score)
                 ranked_results.append(result)
 
+                # Log reranker score with context
+                metadata = result.get("metadata", {})
+                chunk_text = result.get("chunk_text", "")
+                chunk_preview = chunk_text[:100] if chunk_text else "N/A"
+
+                logger.debug(f"\nChunk {idx + 1}:")
+                logger.debug(f"  Qdrant Score: {result.get('score', 0):.4f}")
+                logger.debug(f"  Reranker Score: {score:.4f}")
+                logger.debug(f"  Chunk ID: {metadata.get('chunk_id')}")
+                logger.debug(f"  Department: {metadata.get('department')}")
+                logger.debug(f"  Preview: {chunk_preview}...")
+
             ranked_results.sort(key=lambda x: x.get("rerank_score", 0), reverse=True)
 
+            logger.debug("=" * 80)
+            logger.debug("RERANKER SCORES (AFTER SORTING)")
+            logger.debug("=" * 80)
+
             final_results = ranked_results[:top_k]
+            for idx, result in enumerate(final_results, 1):
+                metadata = result.get("metadata", {})
+                logger.debug(f"\nFinal Chunk {idx}:")
+                logger.debug(f"  Reranker Score: {result.get('rerank_score', 0):.4f}")
+                logger.debug(f"  Chunk ID: {metadata.get('chunk_id')}")
+                logger.debug(f"  Department: {metadata.get('department')}")
+
+            logger.debug("=" * 80)
             logger.info(f"Reranked and returned top {len(final_results)} results")
 
             return final_results

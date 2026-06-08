@@ -76,7 +76,20 @@ class HybridRetriever:
             )
 
             if not rerank:
-                logger.debug("Reranking disabled, returning vector results")
+                logger.debug("Reranking disabled, returning vector results as-is")
+                logger.debug("=" * 80)
+                logger.debug("FINAL RESULTS (NO RERANKING) - USING QDRANT SCORES")
+                logger.debug("=" * 80)
+                for idx, result in enumerate(vector_results, 1):
+                    metadata = result.get("metadata", {})
+                    chunk_text = result.get("chunk_text", "")
+                    chunk_preview = chunk_text[:100] if chunk_text else "N/A"
+                    logger.debug(f"\nFinal Chunk {idx}:")
+                    logger.debug(f"  Score (Qdrant): {result.get('score', 0):.4f}")
+                    logger.debug(f"  Chunk ID: {metadata.get('chunk_id')}")
+                    logger.debug(f"  Department: {metadata.get('department')}")
+                    logger.debug(f"  Preview: {chunk_preview}...")
+                logger.debug("=" * 80)
                 return vector_results
 
             if rerank_top_k is None:
@@ -87,6 +100,22 @@ class HybridRetriever:
                 results=vector_results,
                 top_k=rerank_top_k,
             )
+
+            logger.debug("=" * 80)
+            logger.debug("FINAL RESULTS (AFTER RERANKING) - USING RERANKER SCORES")
+            logger.debug("=" * 80)
+            for idx, result in enumerate(final_results, 1):
+                metadata = result.get("metadata", {})
+                chunk_text = result.get("chunk_text", "")
+                chunk_preview = chunk_text[:100] if chunk_text else "N/A"
+                logger.debug(f"\nFinal Chunk {idx}:")
+                logger.debug(f"  Score (Reranker): {result.get('rerank_score', 0):.4f}")
+                logger.debug(f"  Score (Qdrant - original): {result.get('score', 0):.4f}")
+                logger.debug(f"  Chunk ID: {metadata.get('chunk_id')}")
+                logger.debug(f"  Department: {metadata.get('department')}")
+                logger.debug(f"  Preview: {chunk_preview}...")
+            logger.debug("=" * 80)
+
             logger.info(f"Reranking returned {len(final_results)} results")
 
             return final_results

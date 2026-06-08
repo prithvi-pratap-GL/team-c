@@ -8,6 +8,7 @@ from app.config import get_settings
 from app.models.db_models import SessionLocal, create_tables
 from app.models.schemas import HealthResponse
 from app.routers import auth, chat, feedback, ingest
+from app.routers import users
 from app.services.auth_service import seed_demo_users
 
 logging.basicConfig(
@@ -16,7 +17,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
 
 settings = get_settings()
 
@@ -34,6 +34,7 @@ app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(ingest.router, prefix=settings.api_prefix)
 app.include_router(feedback.router, prefix=settings.api_prefix)
+app.include_router(users.router, prefix=settings.api_prefix)
 
 
 @app.on_event("startup")
@@ -45,7 +46,6 @@ def startup() -> None:
     finally:
         db.close()
 
-    # Ensure Qdrant collection and payload indexes exist
     from app.rag.ingestion.qdrant_client_manager import QdrantClientManager
     qdrant_manager = QdrantClientManager()
     qdrant_manager.create_collection()
