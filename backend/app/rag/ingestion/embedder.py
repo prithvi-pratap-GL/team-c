@@ -6,14 +6,13 @@ from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
 class Embedder:
     """Embedding service using sentence-transformers."""
-
-    MODEL_NAME = "BAAI/bge-base-en-v1.5"
-    EMBEDDING_DIMENSION = 768
 
     _instance: Optional["Embedder"] = None
     _model: Optional[SentenceTransformer] = None
@@ -25,11 +24,12 @@ class Embedder:
         return cls._instance
 
     def __init__(self) -> None:
-        """Initialize embedder with model."""
+        """Initialize embedder with model from settings."""
         if self._model is None:
-            logger.info(f"Loading embedding model: {self.MODEL_NAME}")
-            self._model = SentenceTransformer(self.MODEL_NAME)
-            logger.info(f"Model loaded. Embedding dimension: {self.EMBEDDING_DIMENSION}")
+            settings = get_settings()
+            logger.info(f"Loading embedding model: {settings.embedding_model}")
+            self._model = SentenceTransformer(settings.embedding_model)
+            logger.info(f"Model loaded. Embedding dimension: {settings.embedding_dimension}")
 
     def embed_chunks(self, texts: List[str], batch_size: int = 32) -> List[List[float]]:
         """Embed multiple text chunks.
@@ -82,9 +82,9 @@ class Embedder:
         return embedding.tolist()
 
     def get_dimension(self) -> int:
-        """Get embedding dimension.
+        """Get embedding dimension from settings.
 
         Returns:
-            Embedding vector dimension (768).
+            Embedding vector dimension.
         """
-        return self.EMBEDDING_DIMENSION
+        return get_settings().embedding_dimension

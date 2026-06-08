@@ -30,6 +30,7 @@ from app.rag.generation.groq_client import GroqClientService
 from app.rag.generation.prompt_builder import PromptBuilder, sanitize_llm_response
 from app.rag.retrieval.hybrid_retriever import HybridRetriever
 from app.rag.retrieval.metadata_filter import MetadataFilterBuilder
+from app.services.confidence_service import ConfidenceService
 
 logger = logging.getLogger(__name__)
 
@@ -99,11 +100,11 @@ def _run_rag(
     retriever = HybridRetriever()
     results = retriever.retrieve(query=query, top_k=settings.max_sources, query_filter=query_filter)
 
-    qdrant_score = results[0].get("score", 0) if results else 0
+    vector_score = results[0].get("score", 0) if results else 0
 
-    if results and qdrant_score < settings.min_retrieval_score:
+    if results and vector_score < settings.min_retrieval_score:
         results = []
-        qdrant_score = 0
+        vector_score = 0
 
     if not results:
         response = ChatResponse(
@@ -113,6 +114,8 @@ def _run_rag(
             confidence=Confidence.not_found,
             session_id=session_id,
         )
+        confidence_reason = "no_results"
+        reranker_score = None
     else:
         builder = PromptBuilder()
         system_prompt, user_prompt = builder.build_prompt(query=query, retrieval_results=results)
@@ -132,15 +135,22 @@ def _run_rag(
             for r in results
         ]
 
+        # Calculate confidence using ConfidenceService
+        confidence_svc = ConfidenceService()
+        has_reranker = "rerank_score" in results[0]
+        confidence, debug_info = confidence_svc.calculate(results, has_reranker=has_reranker)
+        confidence_reason = debug_info.get("reason")
+        reranker_score = debug_info.get("reranker_score")
+
         response = ChatResponse(
             answer=answer,
             sources=sources,
             retrieval_mode_used=retrieval_mode,
-            confidence=Confidence.high if qdrant_score >= 0.5 else Confidence.low,
+            confidence=confidence,
             session_id=session_id,
         )
 
-    # Persist legacy chat log
+    # Persist chat log with detailed scoring info
     db.add(
         db_models.ChatLog(
             session_id=session_id,
@@ -148,7 +158,10 @@ def _run_rag(
             query=query,
             answer=response.answer,
             confidence=response.confidence.value,
-            top_score=qdrant_score,
+            top_score=vector_score,
+            vector_score=vector_score if results else None,
+            reranker_score=reranker_score,
+            confidence_reason=confidence_reason,
         )
     )
     return response
@@ -412,8 +425,14 @@ def get_suggestions(
     can access.  No hardcoded strings — all generated from document
     metadata.
     """
-    dept_values = [d.value for d in current_user.departments_allowed]
-
+    # dept_values = [d.value for d in current_user.departments_allowed]
+    dept_values = [
+    d.value if hasattr(d, "value") else d
+    for d in current_user.departments_allowed
+]
+    print(type(current_user.departments_allowed))
+    print(current_user.departments_allowed)
+    
     docs = (
         db.query(db_models.Document)
         .filter(db_models.Document.department.in_(dept_values))

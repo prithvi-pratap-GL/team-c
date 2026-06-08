@@ -4,6 +4,8 @@ import logging
 import os
 from typing import Optional
 
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -12,18 +14,20 @@ class GroqClientService:
 
     def __init__(
         self,
-        model: str = "llama-3.3-70b-versatile",
+        model: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
         """Initialize Groq client service.
 
         Args:
-            model: Groq model identifier.
+            model: Groq model identifier. If None, reads from settings.
             api_key: Groq API key. If not provided, reads from GROQ_API_KEY env var.
 
         Raises:
             ValueError: If API key is not provided and GROQ_API_KEY env var not set.
         """
+        if model is None:
+            model = get_settings().llm_model
         self.model = model
 
         if api_key is None:

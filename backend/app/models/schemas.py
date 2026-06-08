@@ -5,11 +5,15 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-class Department(str, Enum):
+class DepartmentEnum(str, Enum):
     engineering = "engineering"
     hr = "hr"
     operations = "operations"
     product_support = "product_support"
+
+
+# Keep Department as alias for backwards compatibility in the rest of the code
+Department = DepartmentEnum
 
 
 class Category(str, Enum):
@@ -32,6 +36,7 @@ class RetrievalMode(str, Enum):
 
 class Confidence(str, Enum):
     high = "high"
+    medium = "medium"
     low = "low"
     not_found = "not_found"
 
@@ -53,21 +58,24 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     role: Role
-    departments_allowed: List[Department]
+    departments_allowed: List[str]
 
 
 class TokenUser(BaseModel):
     username: str
     role: Role
-    departments_allowed: List[Department]
+    departments_allowed: List[str]
 
 
 class UserProfile(BaseModel):
     id: int
     username: str
     role: Role
-    departments_allowed: List[Department]
+    departments_allowed: List[str]
     created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class IngestMetadata(BaseModel):
@@ -187,3 +195,140 @@ class FeedbackResponse(BaseModel):
 class HealthResponse(BaseModel):
     message: str
     timestamp: datetime
+
+
+# ── Admin Schemas ────────────────────────────────────────────────────
+
+class DepartmentCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    description: Optional[str] = None
+
+
+class DepartmentUpdate(BaseModel):
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class DepartmentResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserCreateAdmin(BaseModel):
+    username: str = Field(..., min_length=2, max_length=80)
+    email: Optional[str] = None
+    password: str = Field(..., min_length=4)
+    role: str
+    departments_allowed: List[str]
+
+
+class UserUpdateAdmin(BaseModel):
+    email: Optional[str] = None
+    role: Optional[str] = None
+    departments_allowed: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
+
+
+class UserAdminResponse(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    role: str
+    departments_allowed: List[str]
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UsersListResponse(BaseModel):
+    users: List[UserAdminResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class AdminDocumentResponse(BaseModel):
+    id: int
+    doc_id: str
+    doc_name: str
+    department: str
+    category: str
+    version: str
+    doc_date: date
+    file_type: str
+    file_size: int
+    chunk_count: int
+    uploaded_by: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AdminDocumentsListResponse(BaseModel):
+    documents: List[AdminDocumentResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class OverviewStats(BaseModel):
+    total_users: int
+    total_documents: int
+    total_departments: int
+    total_chat_sessions: int
+    total_questions_asked: int
+
+
+class TopUser(BaseModel):
+    username: str
+    question_count: int
+
+
+class TopQuestion(BaseModel):
+    query: str
+    count: int
+
+
+class DeptDocCount(BaseModel):
+    department: str
+    count: int
+
+
+class AnalyticsResponse(BaseModel):
+    total_questions: int
+    total_sessions: int
+    top_users: List[TopUser]
+    most_asked: List[TopQuestion]
+    docs_by_department: List[DeptDocCount]
+
+
+class AuditLogResponse(BaseModel):
+    id: int
+    timestamp: datetime
+    actor: str
+    action: str
+    target: Optional[str] = None
+    details: Optional[str] = None
+    ip_address: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AuditLogsListResponse(BaseModel):
+    logs: List[AuditLogResponse]
+    total: int
+    page: int
+    page_size: int

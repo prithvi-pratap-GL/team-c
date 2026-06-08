@@ -1,6 +1,9 @@
 """Cross-encoder reranking for retrieval results."""
 
 import logging
+from typing import Optional
+
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -8,11 +11,11 @@ logger = logging.getLogger(__name__)
 class Reranker:
     """Cross-encoder reranker using sentence-transformers.
 
-    Uses cross-encoder/ms-marco-MiniLM-L-6-v2 for ranking relevance.
+    Uses model from settings (default: cross-encoder/ms-marco-MiniLM-L-6-v2).
     Implemented as singleton to reuse model across requests.
     """
 
-    _instance: "Reranker | None" = None
+    _instance: Optional["Reranker"] = None
 
     def __new__(cls) -> "Reranker":
         """Ensure singleton pattern."""
@@ -21,16 +24,19 @@ class Reranker:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
+    def __init__(self, model_name: Optional[str] = None):
         """Initialize reranker with cross-encoder model.
 
         Args:
-            model_name: Cross-encoder model identifier.
+            model_name: Cross-encoder model identifier. If None, reads from settings.
         """
         if self._initialized:
             return
 
         from sentence_transformers import CrossEncoder
+
+        if model_name is None:
+            model_name = get_settings().reranker_model
 
         self.model_name = model_name
         self.model = CrossEncoder(model_name)

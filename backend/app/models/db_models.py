@@ -16,14 +16,27 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class Department(Base):
+    __tablename__ = "departments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(80), unique=True, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(80), unique=True, index=True, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(40), nullable=False)
     departments_allowed = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
@@ -44,6 +57,7 @@ class Document(Base):
     file_size = Column(Integer, nullable=False, default=0)
     chunk_count = Column(Integer, nullable=False, default=0)
     uploaded_by = Column(String(80), nullable=False)
+    status = Column(String(20), nullable=False, default="processing")  # processing | ready | error
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
@@ -81,9 +95,12 @@ class ChatLog(Base):
     username = Column(String(80), nullable=False)
     query = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
-    confidence = Column(String(40), nullable=False)
+    confidence = Column(String(40), nullable=False, index=True)
     top_score = Column(Float, nullable=False, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    vector_score = Column(Float, nullable=True)
+    reranker_score = Column(Float, nullable=True)
+    confidence_reason = Column(String(80), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
 class ChatSession(Base):
@@ -111,7 +128,6 @@ class ChatMessage(Base):
     session_id = Column(Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False)
     role = Column(String(10), nullable=False)   # "user" | "assistant"
     content = Column(Text, nullable=False)
-    # Store serialized JSON for sources/confidence (assistant only)
     meta_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -120,6 +136,18 @@ class ChatMessage(Base):
     __table_args__ = (
         Index("ix_chat_messages_session_created", "session_id", "created_at"),
     )
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    actor = Column(String(80), nullable=False, index=True)       # username who performed the action
+    action = Column(String(80), nullable=False, index=True)      # LOGIN, LOGOUT, USER_CREATE, etc.
+    target = Column(String(255), nullable=True)                   # target entity (username, doc_id, etc.)
+    details = Column(Text, nullable=True)                         # JSON or free-form detail string
+    ip_address = Column(String(45), nullable=True)
 
 
 def get_db():
